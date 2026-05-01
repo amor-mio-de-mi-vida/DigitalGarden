@@ -1,6 +1,6 @@
 ---
-title: Interview
-category:
+title: CUDA
+category: cuda
 tags:
 draft: "false"
 ---

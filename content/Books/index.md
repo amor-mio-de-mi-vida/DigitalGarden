@@ -1,6 +1,6 @@
 ---
 title: Books
-category:
+category: books
 tags:
 draft: "false"
 ---

@@ -1,6 +1,6 @@
 ---
 title: Courses
-category:
+category: courses
 tags:
 draft: "false"
 ---
