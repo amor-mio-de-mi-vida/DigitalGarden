@@ -19,6 +19,9 @@ See the [documentation](https://quartz.jzhao.xyz) for how to get started.
 ## [[Literature/index|Literature]]
 
 
+## [[Math/index|Math]]
 
-These are my [[private/index|🔒private]] notes
+
+
+## [[private/index|🔒private]] 
 
