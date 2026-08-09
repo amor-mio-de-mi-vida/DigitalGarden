@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PP × 组合场景（姊妹 deck）</title>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --ink: #1d2433;
+    --muted: #5c6577;
+    --line: #d8dde6;
+    --accent: #4f5fd5;
+    --accent-ink: #3a48b0;
+    --l1: #b47410; --l1-bg: rgba(196,138,30,.10);
+    --l2: #0e8f7e; --l2-bg: rgba(16,148,131,.09);
+    --l3: #4f5fd5; --l3-bg: rgba(88,102,214,.09);
+    --bad: #c03d3d; --bad-bg: rgba(203,72,72,.09);
+    --good: #2f8f4e; --good-bg: rgba(56,153,91,.10);
+    --code-bg: #171d2b;
+    --code-ink: #dde4f2;
+    --chip-open: #b06a10;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151d; --surface: #1a2029; --ink: #e7ebf4; --muted: #9aa4b6;
+      --line: #2c3442; --accent: #93a2f2; --accent-ink: #aab7f7;
+      --l1: #e2a63d; --l1-bg: rgba(226,166,61,.12);
+      --l2: #3cc4ae; --l2-bg: rgba(60,196,174,.11);
+      --l3: #93a2f2; --l3-bg: rgba(147,162,242,.11);
+      --bad: #ef8080; --bad-bg: rgba(239,128,128,.11);
+      --good: #6fcd8c; --good-bg: rgba(111,205,140,.12);
+      --chip-open: #e2a63d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151d; --surface: #1a2029; --ink: #e7ebf4; --muted: #9aa4b6;
+    --line: #2c3442; --accent: #93a2f2; --accent-ink: #aab7f7;
+    --l1: #e2a63d; --l1-bg: rgba(226,166,61,.12);
+    --l2: #3cc4ae; --l2-bg: rgba(60,196,174,.11);
+    --l3: #93a2f2; --l3-bg: rgba(147,162,242,.11);
+    --bad: #ef8080; --bad-bg: rgba(239,128,128,.11);
+    --good: #6fcd8c; --good-bg: rgba(111,205,140,.12);
+    --chip-open: #e2a63d;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f9; --surface: #ffffff; --ink: #1d2433; --muted: #5c6577;
+    --line: #d8dde6; --accent: #4f5fd5; --accent-ink: #3a48b0;
+    --l1: #b47410; --l1-bg: rgba(196,138,30,.10);
+    --l2: #0e8f7e; --l2-bg: rgba(16,148,131,.09);
+    --l3: #4f5fd5; --l3-bg: rgba(88,102,214,.09);
+    --bad: #c03d3d; --bad-bg: rgba(203,72,72,.09);
+    --good: #2f8f4e; --good-bg: rgba(56,153,91,.10);
+    --chip-open: #b06a10;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    font-size: 16px; line-height: 1.62;
+    overflow: hidden;
+  }
+  #bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 50; transition: width .25s ease; }
+  @media (prefers-reduced-motion: reduce) { #bar { transition: none; } }
+
+  #deck { position: fixed; inset: 0; }
+  section.slide {
+    position: absolute; inset: 0 0 46px 0; overflow-y: auto;
+    display: none; padding: 34px clamp(20px, 5vw, 72px) 28px;
+  }
+  section.slide.on { display: block; }
+  .inner { max-width: 1120px; margin: 0 auto; }
+
+  footer#chrome {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 46px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; border-top: 1px solid var(--line);
+    background: var(--bg); z-index: 40; font-size: 12.5px; color: var(--muted);
+  }
+  #navbtns { display: flex; gap: 8px; align-items: center; }
+  #navbtns button {
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 4px 14px; font-size: 14px; cursor: pointer;
+  }
+  #navbtns button:hover { border-color: var(--accent); color: var(--accent-ink); }
+  #navbtns button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #counter { font-variant-numeric: tabular-nums; }
+
+  .eyebrow {
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-ink); font-weight: 650; margin-bottom: 6px;
+  }
+  h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.2; font-weight: 760; text-wrap: balance; letter-spacing: -.01em; }
+  h2 { font-size: clamp(22px, 2.6vw, 30px); font-weight: 720; margin-bottom: 14px; text-wrap: balance; letter-spacing: -.005em; }
+  h3 { font-size: 16.5px; font-weight: 680; margin-bottom: 6px; }
+  p.lede { font-size: 17px; color: var(--muted); max-width: 46em; }
+  .muted { color: var(--muted); }
+  strong { font-weight: 680; }
+  em { font-style: normal; font-weight: 640; color: var(--accent-ink); }
+
+  code, .mono { font-family: var(--mono); }
+  p code, li code, td code, h3 code, .card code {
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    border-radius: 4px; padding: .08em .34em; font-size: .88em;
+    overflow-wrap: anywhere;   /* 窄栏里长标识符可断行，避免撑出容器 */
+  }
+  pre {
+    background: var(--code-bg); color: var(--code-ink);
+    border-radius: 10px; padding: 14px 16px; overflow-x: auto;
+    font-family: var(--mono); font-size: 12.8px; line-height: 1.6;
+    border: 1px solid color-mix(in srgb, var(--code-bg) 70%, var(--line));
+  }
+  pre .cm { color: #7f8ba6; }
+  pre .hl { color: #ffd27f; }
+  pre .fn { color: #8fd3c7; }
+  /* 三栏卡片内的 pre 很窄（多为报错签名）：软换行优于横向滚动 */
+  .cols.c3 pre, .cols.c4 pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .codecap { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .codecap code { font-size: .95em; }
+
+  .cols { display: grid; gap: 16px; margin: 14px 0; }
+  .cols.c2 { grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); }
+  .cols.c3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .cols.c4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .card.t1 { border-top: 3px solid var(--l1); }
+  .card.t2 { border-top: 3px solid var(--l2); }
+  .card.t3 { border-top: 3px solid var(--l3); }
+  .card.bad { border-top: 3px solid var(--bad); }
+  .card.good { border-top: 3px solid var(--good); }
+  .card h3 .n { color: var(--muted); font-weight: 600; font-size: 13px; margin-right: 6px; font-variant-numeric: tabular-nums; }
+  .card p, .card li { font-size: 14px; }
+  .card ul { padding-left: 1.2em; }
+
+  .chip {
+    display: inline-block; font-size: 11.5px; font-weight: 650; letter-spacing: .04em;
+    border-radius: 999px; padding: 1px 10px; vertical-align: 2px;
+  }
+  .chip a { color: inherit; text-decoration: none; }
+  .chip.merged { color: var(--good); background: var(--good-bg); }
+  .chip.open   { color: var(--chip-open); background: var(--l1-bg); }
+  .chip.local  { color: var(--accent-ink); background: var(--l3-bg); }
+
+  .tier { display: inline-block; font-weight: 680; }
+  .tier.l1 { color: var(--l1); } .tier.l2 { color: var(--l2); } .tier.l3 { color: var(--l3); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+  td code { white-space: nowrap; }
+  .tablewrap { overflow-x: auto; margin: 10px 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  figure { margin: 16px 0; }
+  figure svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  figcaption {
+    font-size: 13px; color: var(--muted); margin-top: 10px; text-align: center;
+    max-width: 56em; margin-left: auto; margin-right: auto;
+  }
+  figcaption b { color: var(--ink); font-weight: 650; }
+
+  /* SVG shared classes */
+  svg text { font-family: inherit; font-size: 12.5px; fill: var(--ink); }
+  svg text.m  { fill: var(--muted); font-size: 11px; }
+  svg text.cd { font-family: var(--mono); font-size: 11.3px; }
+  svg text.cdm{ font-family: var(--mono); font-size: 10.6px; fill: var(--muted); }
+  svg text.big{ font-size: 13.5px; font-weight: 680; }
+  svg .b   { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  svg .b1  { fill: var(--l1-bg); stroke: var(--l1); stroke-width: 1.4; }
+  svg .b2  { fill: var(--l2-bg); stroke: var(--l2); stroke-width: 1.4; }
+  svg .b3  { fill: var(--l3-bg); stroke: var(--l3); stroke-width: 1.4; }
+  svg .bb  { fill: var(--bad-bg); stroke: var(--bad); stroke-width: 1.4; }
+  svg .bg  { fill: var(--good-bg); stroke: var(--good); stroke-width: 1.4; }
+  svg .bq  { fill: none; stroke: var(--muted); stroke-width: 1.1; stroke-dasharray: 4 3; }
+  svg .ln  { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+  svg .lnm { stroke: var(--muted); stroke-width: 1.1; fill: none; }
+  svg .ln1 { stroke: var(--l1); stroke-width: 1.6; fill: none; }
+  svg .ln2 { stroke: var(--l2); stroke-width: 1.6; fill: none; }
+  svg .ln3 { stroke: var(--l3); stroke-width: 1.6; fill: none; }
+  svg .lnb { stroke: var(--bad); stroke-width: 1.5; fill: none; }
+  svg .lng { stroke: var(--good); stroke-width: 1.5; fill: none; }
+  svg .dash{ stroke-dasharray: 5 4; }
+  svg .t1f { fill: var(--l1); } svg .t2f { fill: var(--l2); } svg .t3f { fill: var(--l3); }
+  svg .tbf { fill: var(--bad); } svg .tgf { fill: var(--good); }
+
+  ul.tight { padding-left: 1.25em; }
+  ul.tight li { margin: 4px 0; }
+  .note {
+    border-left: 3px solid var(--accent); background: var(--l3-bg);
+    border-radius: 0 10px 10px 0; padding: 10px 14px; font-size: 14px; margin: 12px 0;
+  }
+  .note.warn { border-left-color: var(--bad); background: var(--bad-bg); }
+  .note.ok { border-left-color: var(--good); background: var(--good-bg); }
+  .kbdhint { color: var(--muted); font-size: 13.5px; margin-top: 30px; }
+  kbd {
+    font-family: var(--mono); font-size: 12px; border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 5px; padding: 1px 7px; background: var(--surface);
+  }
+  .toc { columns: 2; gap: 28px; font-size: 14.5px; margin-top: 10px; }
+  .toc a { color: var(--ink); text-decoration: none; display: block; padding: 3px 0; }
+  .toc a:hover { color: var(--accent-ink); }
+  .toc .sec { color: var(--muted); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; margin: 10px 0 2px; break-inside: avoid; }
+  .src { font-size: 12px; color: var(--muted); }
+  a { color: var(--accent-ink); }
+</style>
+
+<div id="bar" role="presentation"></div>
+
+<main id="deck">
+
+<!-- ═══════════════ 0. 封面 ═══════════════ -->
+<section class="slide" aria-label="封面">
+  <div class="inner" style="padding-top: 8vh;">
+    <div class="eyebrow">SGLang · 技术汇报 · 2026-08 · 姊妹篇</div>
+    <h1>PP × 组合场景</h1>
+    <p class="lede" style="margin-top:16px;">
+      从主报告拆出的组合场景专辑：TP / DP-attention / CP / EP 与流水线并行的组合机制、
+      chunked prefill 动态分块、PD 分离 × Mooncake、EAGLE 推测解码及其传递链。
+    </p>
+    <div style="margin-top:26px; display:flex; gap:10px; flex-wrap:wrap;">
+      <span class="chip local">姊妹 deck · 主报告：pp-hicache-l3-slides.htm</span>
+      <span class="chip merged">文中「主 deck 第 N 页」= 主报告页码</span>
+    </div>
+    <div class="toc" style="columns:2; margin-top:24px;">
+      <div class="sec">目录</div>
+      <a href="#/2">02 · DPA+PD+PP+Mooncake+EAGLE 总览</a>
+      <a href="#/3">03 · TP × PP 组合机制</a>
+      <a href="#/4">04 · DP attention 机制</a>
+      <a href="#/5">05 · CP × PP 与 EP × PP</a>
+      <a href="#/6">06 · chunked prefill × PP：动态分块</a>
+      <a href="#/7">07 · PD 分离 × Mooncake</a>
+      <a href="#/8">08 · EAGLE 推测解码</a>
+      <a href="#/9">09 · PD + EAGLE 传递链</a>
+    </div>
+    <p class="kbdhint"><kbd>→</kbd> / <kbd>空格</kbd> 下一页 · <kbd>←</kbd> 上一页 · <a href="pp-hicache-l3-slides.htm">← 返回主 deck</a></p>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — 总纲 issue <a href="https://github.com/sgl-project/sglang/issues/22607">#22607</a> · 代码基线 <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt">sglang/srt</a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 20. 组合总览 ═══════════════ -->
+<section class="slide" aria-label="组合场景总览">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 01</div>
+    <h2>DPA + PD + PP + Mooncake + EAGLE：先说结论</h2>
+    <div class="note warn" style="margin-top:0;">
+      <strong>五件套叠不进同一个实例：<code>server_args.py:6832</code> 硬断言 <code>pp_size &gt; 1 → speculative_algorithm is None</code>。</strong>
+      且 decode 端要跑 EAGLE，prefill 端必须同配 EAGLE（才会产出 hidden states / topk 给 decode 起 draft）。
+      所以现实形态只有两种：<strong>A</strong> = PP-prefill + 普通 decode（无 EAGLE）；<strong>B</strong> = TP/DPA-prefill(+EAGLE 采集) + EAGLE-decode（无 PP）。下图画的是形态 B。
+    </div>
+    <figure>
+      <svg viewBox="0 0 960 400" role="img" aria-label="PD 分离部署拓扑：路由按 bootstrap_room 分发；prefill 实例含 DP attention 组；decode 实例含 EAGLE worker；两实例间 mooncake 走 KV 平面与 aux 平面两条通道；bootstrap server 负责握手">
+        <defs>
+          <marker id="ar-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <rect class="b" x="330" y="12" width="300" height="52" rx="10"/>
+          <text class="big" x="348" y="36">LB / Router</text>
+          <text class="m" x="348" y="54">PD-prefill 默认 follow_bootstrap_room：room % dp_size</text>
+          <path class="ln" d="M 400 64 L 240 108" marker-end="url(#ar-m)"/>
+          <path class="ln" d="M 560 64 L 720 108" marker-end="url(#ar-m)"/>
+
+          <rect class="b2" x="30" y="108" width="420" height="200" rx="12"/>
+          <text class="big" x="48" y="134">Prefill 实例（EAGLE 同配，用于采集）</text>
+          <rect class="b" x="48" y="150" width="180" height="140" rx="9"/>
+          <text class="cd" x="62" y="172">attn-DP rank 0</text>
+          <text class="m" x="62" y="192">attention 只算本组 token</text>
+          <text class="m" x="62" y="210">MoE/MLP 全局 gather</text>
+          <text class="m" x="62" y="234">bootstrap_queue →</text>
+          <text class="m" x="62" y="252">prefill → inflight_queue</text>
+          <text class="m" x="62" y="274">cuda graph 强制关闭</text>
+          <rect class="b" x="248" y="150" width="180" height="140" rx="9"/>
+          <text class="cd" x="262" y="172">attn-DP rank 1</text>
+          <text class="m" x="262" y="192">…同左</text>
+          <text class="m" x="262" y="252">若走形态 A：此处可换成</text>
+          <text class="m" x="262" y="270">PP0→PP1 stage 栈（无 EAGLE）</text>
+
+          <rect class="b1" x="510" y="108" width="420" height="200" rx="12"/>
+          <text class="big" x="528" y="134">Decode 实例（EAGLE，无 PP）</text>
+          <rect class="b" x="528" y="150" width="185" height="140" rx="9"/>
+          <text class="cd" x="542" y="172">EAGLE Worker</text>
+          <text class="m" x="542" y="192">draft + target 共享</text>
+          <text class="m" x="542" y="208">KV allocator/pool</text>
+          <text class="m" x="542" y="232">prealloc_queue →</text>
+          <text class="m" x="542" y="250">transfer_queue → running</text>
+          <rect class="b" x="730" y="150" width="185" height="140" rx="9"/>
+          <text class="cd" x="744" y="172">（× dp ranks）</text>
+          <text class="m" x="744" y="192">radix cache 默认关</text>
+          <text class="m" x="744" y="208">（chunk cache 退化）</text>
+          <text class="m" x="744" y="232">decode-radix 与 spec</text>
+          <text class="m" x="744" y="250">互斥（hook:41）</text>
+
+          <path class="ln3" d="M 450 190 L 510 190" marker-end="url(#ar-m)"/>
+          <text class="cdm t3f" x="382" y="330">KV 平面：mooncake batch_transfer_sync（RDMA，按 page 分块）</text>
+          <path class="ln3" d="M 452 328 L 380 328"/>
+          <path class="ln1" d="M 450 240 L 510 240" marker-end="url(#ar-m)"/>
+          <text class="cdm t1f" x="382" y="352">aux 平面：MetadataBuffers（首 token / logprobs / topk / hidden_states）</text>
+          <path class="ln1" d="M 452 350 L 380 350"/>
+
+          <rect class="bq" x="330" y="358" width="300" height="34" rx="9"/>
+          <text class="m" x="346" y="380">Bootstrap server（prefill 侧 HTTP）：room 注册与两端握手</text>
+        </g>
+      </svg>
+      <figcaption><b>图 15 · 形态 B 的部署拓扑。</b>KV 与元数据走<b>两个独立平面</b>：KV 页走 RDMA 批传，spec 起步所需的 hidden states / topk 走 aux buffer（第 9 页展开）。DPA 与 PD、Mooncake、EAGLE 均可叠加；PP 只能出现在放弃 EAGLE 的实例里。</figcaption>
+    </figure>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>组合</th><th>结论</th><th>依据</th></tr></thead>
+        <tbody>
+          <tr><td>PP × 任意 speculative</td><td>❌ 硬断言互斥</td><td><code>server_args.py:6832</code>（PP 同时强制关 overlap schedule）</td></tr>
+          <tr><td>EAGLE × DP attention</td><td>✅ 允许</td><td>可加 <code>--speculative-skip-dp-mlp-sync</code>；STANDALONE / DFLASH / NGRAM × DPA 均 ❌</td></tr>
+          <tr><td>PD-decode radix cache × spec</td><td>❌ 互斥</td><td><code>pd_disaggregation_hook.py:41</code>；decode 默认本就关 radix（chunk cache）</td></tr>
+          <tr><td>PD-prefill</td><td>强制 <code>disable_cuda_graph</code></td><td><code>pd_disaggregation_hook.py:78</code></td></tr>
+          <tr><td>DP attention × PP</td><td>✅ 允许</td><td>DPController 按 pp_rank × tp_rank 双重循环拉起（<code>data_parallel_controller.py:481</code>）</td></tr>
+          <tr><td>TP × PP</td><td>✅ 基础组合</td><td>三个通信平面正交（第 3 页）；pp&gt;1 强制关 overlap schedule（<code>server_args.py:6832</code>）</td></tr>
+          <tr><td>CP × PP</td><td>✅ 互斥已解除</td><td>旧 <code>assert pp_size==1</code> 已删（<code>server_args.py:5166</code> 起仅整除检查）；DSA prefill CP 专门适配了 PP 传输（第 5 页）</td></tr>
+          <tr><td>EP × PP</td><td>✅ 无互斥断言</td><td>EP 只活在每层 MoE 内部，与 PP 互不知晓（第 5 页）；moe_dp&gt;1 时例外（<code>server_args.py:5187</code>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — 源码：<a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/data_parallel_controller.py"><code>data_parallel_controller.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/server_args.py"><code>server_args.py</code></a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 20b. TP × PP 机制 ═══════════════ -->
+<section class="slide" aria-label="TP × PP 组合机制">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 02</div>
+    <h2>TP × PP：切宽 × 切深，三个通信平面</h2>
+    <p class="lede" style="font-size:15px;">TP 把每一层切「宽」（head / 矩阵列），PP 把模型切「深」（层段）。world = pp × tp，每个 (pp_rank, tp_rank) 都是一个独立 Scheduler 进程（<code>engine.py:618</code> 双重循环拉起）——两把刀维度正交，靠三个各司其职的通信平面粘合。</p>
+    <figure>
+      <svg viewBox="0 0 960 326" role="img" aria-label="TP 乘 PP 的三个通信平面：请求平面走 gloo，由各 stage 的 tp0 点对点接力并在组内广播；hidden 平面走 NCCL 点对点，每个 tp rank 发送切片、接收端 all_gather 复原；层内平面是每层两次的 NCCL all_reduce，只存在于 stage 内部">
+        <defs>
+          <marker id="ar-tp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <rect class="b" x="20" y="14" width="920" height="94" rx="10"/>
+          <text class="big" x="36" y="38">① 请求平面 · gloo CPU 组 · 每调度步一次</text>
+          <rect class="bq" x="36" y="52" width="84" height="34" rx="17"/>
+          <text class="cd" x="48" y="73">ZMQ 入口</text>
+          <rect class="b3" x="150" y="52" width="100" height="34" rx="7"/>
+          <text class="cd" x="162" y="73">pp0 · tp0</text>
+          <rect class="b" x="300" y="52" width="110" height="34" rx="7"/>
+          <text class="cd" x="310" y="73">pp0 · tp1-3</text>
+          <rect class="b3" x="470" y="52" width="100" height="34" rx="7"/>
+          <text class="cd" x="482" y="73">pp1 · tp0</text>
+          <rect class="b" x="620" y="52" width="110" height="34" rx="7"/>
+          <text class="cd" x="630" y="73">pp1 · tp1-3</text>
+          <path class="lnm dash" d="M 120 69 L 150 69" marker-end="url(#ar-tp)"/>
+          <path class="lnm dash" d="M 250 69 L 300 69" marker-end="url(#ar-tp)"/>
+          <path class="lnm dash" d="M 410 69 L 470 69" marker-end="url(#ar-tp)"/>
+          <path class="lnm dash" d="M 570 69 L 620 69" marker-end="url(#ar-tp)"/>
+          <text class="cdm" x="238" y="100">broadcast_pyobj</text>
+          <text class="cdm" x="400" y="46">p2p 仅 tp0↔tp0</text>
+          <text class="cdm" x="560" y="100">broadcast_pyobj</text>
+          <text class="m" x="748" y="60">leader = pp0 ∧ attn_tp0 ∧ cp0</text>
+          <text class="cdm" x="748" y="78">scheduler.py:629</text>
+          <text class="m" x="748" y="96">全网格同一请求序列</text>
+
+          <rect class="b" x="20" y="118" width="920" height="94" rx="10"/>
+          <text class="big" x="36" y="140">② hidden 平面 · NCCL P2P</text>
+          <rect class="b1" x="150" y="156" width="170" height="40" rx="7"/>
+          <text class="cd" x="166" y="180">stage i · tp0-3</text>
+          <rect class="b1" x="560" y="156" width="170" height="40" rx="7"/>
+          <text class="cd" x="576" y="180">stage i+1 · tp0-3</text>
+          <path class="ln1" d="M 320 162 L 560 162" marker-end="url(#ar-tp)"/>
+          <path class="ln1" d="M 320 170 L 560 170" marker-end="url(#ar-tp)"/>
+          <path class="ln1" d="M 320 178 L 560 178" marker-end="url(#ar-tp)"/>
+          <path class="ln1" d="M 320 186 L 560 186" marker-end="url(#ar-tp)"/>
+          <text class="cdm" x="330" y="152">每 rank 只发 1/tp 切片：reshape(tp, -1)[rank]</text>
+          <text class="cdm" x="330" y="206">收端 attn_tp all_gather 复原（parallel_state.py:1479 / 1530）</text>
+          <text class="m" x="758" y="168">4 条并行管道</text>
+          <text class="m" x="758" y="186">同 tp_rank 对同 tp_rank，</text>
+          <text class="m" x="758" y="202">PP 带宽 ÷ tp</text>
+
+          <rect class="b" x="20" y="222" width="920" height="94" rx="10"/>
+          <text class="big" x="36" y="246">③ 层内平面 · NCCL 设备组 · 每层 ×2（最高频）</text>
+          <rect class="b2" x="150" y="260" width="260" height="40" rx="7"/>
+          <text class="cd" x="166" y="284">attention → o_proj 后 all_reduce</text>
+          <rect class="b2" x="450" y="260" width="250" height="40" rx="7"/>
+          <text class="cd" x="466" y="284">MLP → down_proj 后 all_reduce</text>
+          <path class="ln2" d="M 410 280 L 450 280" marker-end="url(#ar-tp)"/>
+          <text class="m" x="730" y="272">只存在于 stage 内部，PP 边界零参与；</text>
+          <text class="m" x="730" y="290">这也是 TP 必须留在 NVLink 域内的原因</text>
+        </g>
+      </svg>
+      <figcaption><b>图 15b · TP × PP 的三个通信平面（PP2 × TP4 为例）。</b>频率与量级相反：③ 每层两次、但每次只有激活大小（微秒级）；② 每 microbatch 一次、GB 级但被切成 1/tp（发切片、收端 all_gather 是 <code>send_tensor_dict</code> 的带宽优化）；① 每调度步一次、纯 CPU 消息。三者互不阻塞——① 走 gloo，②③ 走 NCCL 设备流。请求经「ZMQ → TP 广播 → PP 点对点接力 → 再 TP 广播」三级分发：PP 间只有 attn_tp0 互相 relay，到站后组内广播（<code>scheduler_pp_mixin.py:2141</code>）。</figcaption>
+    </figure>
+    <div class="cols c2">
+      <div class="card t1">
+        <h3>KV cache：字节分家，元数据必须同构</h3>
+        <ul class="tight" style="font-size:13.5px;">
+          <li><strong>MHA</strong>：<code>token_to_kv_pool</code> 每 rank 只存 <code>num_heads/tp</code> 个 head 的 K/V——同一 token 的字节散在 tp 个 rank 上，缺一个 rank 数据即不完整；<strong>MLA</strong>：latent 每 rank 全量相同 → L3 只让 tp0 写（主 deck 第 4 页卡片 ③）。</li>
+          <li><strong>radix 树 / req_to_token</strong>：每 rank 一棵/一份，树形与 slot 编号必须跨 tp × pp 全员同构（主 deck 第 23 页）——slot 编号即「第 i 个 token」，各 rank 用同一编号找到自己那份字节。</li>
+          <li><strong>推论</strong>：HiCache 的元数据共识要覆盖整个网格——prefetch 命中长度在 <code>_create_sync_groups</code> 建的 attn_cp / attn_tp / tp / pp 各同步组上逐组 <code>all_reduce(MIN)</code>（<code>cache_controller.py:1141</code>），PP 维靠 pp_sync / MIN 投票（主 deck 第 13 / 16 页）。</li>
+        </ul>
+      </div>
+      <div class="card bad">
+        <h3>一致性原语与两种失效模式</h3>
+        <ul class="tight" style="font-size:13.5px;">
+          <li><strong>采样一致</strong>：last stage 各 tp rank <strong>各自采样</strong>，靠「同输入 + 同 seed」确定性；grammar 或 <code>SYNC_TOKEN_IDS_ACROSS_TP</code> 时改为 <code>all_reduce(MIN)</code> 硬对齐 token id（<code>sampler.py:382</code>；DPA 下同步组换成 attn_tp 组）。</li>
+          <li><strong>失效模式不对称</strong>（主 deck 第 11 页）：TP 错位 = 两个不同 collective 相遇 → <strong>立即挂死</strong>（形态 C，<a href="https://github.com/sgl-project/sglang/issues/30760">#30760</a>）；PP 错位 = proxy tensor 行数不符 → <strong>迟发</strong> shape mismatch（形态 A）。TP 是快刀，PP 是慢性病。</li>
+          <li><strong>组合约束</strong>：pp &gt; 1 强制关 overlap schedule、禁 speculative（<code>server_args.py:6832</code>）；chunked prefill 不但允许，还有 PP 专属的动态分块机制（第 6 页）。</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — PR / issue：<a href="https://github.com/sgl-project/sglang/issues/30760">#30760</a> ｜ 源码：<a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/cache_controller.py"><code>cache_controller.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/entrypoints/engine.py"><code>engine.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/distributed/parallel_state.py"><code>parallel_state.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/sampler.py"><code>sampler.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler.py"><code>scheduler.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler_pp_mixin.py"><code>scheduler_pp_mixin.py</code></a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 21. DP attention ═══════════════ -->
+<section class="slide" aria-label="DP attention 机制">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 03</div>
+    <h2>DP attention：attention 各算各的，MoE 合起来算</h2>
+    <figure>
+      <svg viewBox="0 0 960 300" role="img" aria-label="DP attention 一层的数据流：两个 dp 组各自计算本组 token 的 attention，经 dp_gather 汇成全局 batch 过 MoE/MLP，再 dp_scatter 拆回各组；global_num_tokens 由每步一次的 all_gather 对齐">
+        <defs>
+          <marker id="ar-n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <rect class="b2" x="60" y="30" width="300" height="70" rx="10"/>
+          <text class="big" x="78" y="56">attn-DP 0 · Attention</text>
+          <text class="m" x="78" y="76">只算本组请求的 token（KV 各自独立）</text>
+          <rect class="b2" x="600" y="30" width="300" height="70" rx="10"/>
+          <text class="big" x="618" y="56">attn-DP 1 · Attention</text>
+          <text class="m" x="618" y="76">只算本组请求的 token</text>
+
+          <rect class="b3" x="280" y="150" width="400" height="70" rx="10"/>
+          <text class="big" x="298" y="176">全局 MLP / MoE</text>
+          <text class="m" x="298" y="196">对 concat 后的全局 batch 计算（expert 均衡靠大 batch）</text>
+
+          <path class="ln2" d="M 210 100 L 340 150" marker-end="url(#ar-n)"/>
+          <path class="ln2" d="M 750 100 L 620 150" marker-end="url(#ar-n)"/>
+          <text class="cdm" x="90" y="132">dp_gather_partial（all_gatherv / padding all_gather）</text>
+          <path class="ln3" d="M 380 220 L 240 262" marker-end="url(#ar-n)"/>
+          <path class="ln3" d="M 580 220 L 720 262" marker-end="url(#ar-n)"/>
+          <text class="cdm" x="330" y="252">dp_scatter / reduce_scatterv（回到各组，进下一层 attention）</text>
+          <rect class="b" x="60" y="262" width="300" height="26" rx="8"/>
+          <text class="m" x="76" y="280">dp0 下一层输入</text>
+          <rect class="b" x="600" y="262" width="300" height="26" rx="8"/>
+          <text class="m" x="616" y="280">dp1 下一层输入</text>
+        </g>
+      </svg>
+      <figcaption><b>图 16 · 一层 transformer 里的 gather / scatter。</b>attention 段每 dp 组独立（各组 batch 不同）；进 MoE 前 gather 成全局 batch，出来再 scatter 回去。gather 的形状依赖 <code>global_num_tokens</code>——这就是调度侧每步都要做 MLP sync 的原因。（layers/dp_attention.py:596 / communicator.py:1078）</figcaption>
+    </figure>
+    <div class="cols c2">
+      <pre><span class="cm"># 调度侧每步的全局对齐（dp_attn.py:143）</span>
+local = num_tokens(batch)      <span class="cm"># decode=bs, extend=Σextend, 空=0</span>
+MLPSyncBatchInfo.all_gather()  <span class="cm"># 一次拿全局 num_tokens/mode</span>
+if max(global_num_tokens) &gt; 0 and 本 rank 没活:
+    batch = get_idle_batch()   <span class="cm"># 必须发起 idle batch！否则 MoE 的</span>
+                               <span class="cm"># all-gather 缺席 → 全员挂死</span></pre>
+      <div>
+        <ul class="tight" style="font-size:14px;">
+          <li><strong>rank 布局</strong>：<code>attn_tp_size = tp_size / dp_size / cp_size</code>，layout = (dp, cp, tp)，tp 变化最快（<code>dp_attention.py:245</code>）。</li>
+          <li><strong>收请求</strong>：每 dp 组的 attn-tp-rank0 各收各的；工作请求只在组内 broadcast，控制消息全 tp 组 broadcast（<code>request_receiver.py:246</code>）。</li>
+          <li><strong>参数副作用</strong>：开 DPA 后 <code>schedule_conservativeness ×0.3</code>、<code>chunked_prefill_size ÷= dp_size</code>（<code>server_args.py:5207</code>）。</li>
+          <li><strong>overlap 决策要用全局量</strong>：spec+DPA 下用 all_gather 出的 <code>is_extend_in_batch</code> 而非本地 mode，否则各组决策分叉 → 死锁（<code>scheduler.py:1753</code>）——与 Part 2 同款「本地状态→全局决策」定律。</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — 源码：<a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/dp_attention.py"><code>dp_attention.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler.py"><code>scheduler.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/server_args.py"><code>server_args.py</code></a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 21b. CP × PP 与 EP × PP ═══════════════ -->
+<section class="slide" aria-label="CP × PP 与 EP × PP">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 04</div>
+    <h2>CP × PP：互斥已解除；EP × PP：天然正交</h2>
+    <p class="lede" style="font-size:15px;">各并行维度与 PP 的关系分三档：TP / DPA / EP 直接叠（切的维度不相交），speculative / PD-Multiplexing 被断言禁止，CP 则走完了「从 <code>assert pp_size == 1</code> 到打通」的全程——最新代码已移除互斥断言，并为 DSA prefill CP 适配了 PP 传输层。本页讲 CP 切了什么、怎么打通，以及 EP 为何对 PP 完全无感。</p>
+    <figure>
+      <svg viewBox="0 0 960 296" role="img" aria-label="CP round-robin-split 数据流：输入序列按 token 位置奇偶交错分给两个 CP rank，各自用本 rank 的 Q 与全量 KV 算 partial attention，输出经 all_gather 与 transpose 复原完整序列进入 MoE">
+        <defs>
+          <marker id="ar-cp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <text class="m" x="30" y="30">prefill 输入序列（token_idx % cp_size 交错分配，cp=2 示意）</text>
+          <rect class="b2" x="30" y="44" width="42" height="32" rx="6"/><text class="cd" x="43" y="64">t0</text>
+          <rect class="b3" x="76" y="44" width="42" height="32" rx="6"/><text class="cd" x="89" y="64">t1</text>
+          <rect class="b2" x="122" y="44" width="42" height="32" rx="6"/><text class="cd" x="135" y="64">t2</text>
+          <rect class="b3" x="168" y="44" width="42" height="32" rx="6"/><text class="cd" x="181" y="64">t3</text>
+          <rect class="b2" x="214" y="44" width="42" height="32" rx="6"/><text class="cd" x="227" y="64">t4</text>
+          <rect class="b3" x="260" y="44" width="42" height="32" rx="6"/><text class="cd" x="273" y="64">t5</text>
+          <rect class="b2" x="306" y="44" width="42" height="32" rx="6"/><text class="cd" x="319" y="64">t6</text>
+          <rect class="b3" x="352" y="44" width="42" height="32" rx="6"/><text class="cd" x="365" y="64">t7</text>
+          <path class="ln2" d="M 394 54 C 430 50, 440 50, 470 52" marker-end="url(#ar-cp)"/>
+          <path class="ln3" d="M 394 72 C 430 110, 440 160, 470 178" marker-end="url(#ar-cp)"/>
+          <rect class="b2" x="470" y="16" width="220" height="104" rx="9"/>
+          <text class="cd" x="484" y="38">attn-CP rank 0</text>
+          <text class="m" x="484" y="56">Q = t0 t2 t4 t6</text>
+          <text class="m" x="484" y="72">partial attn：本 rank 的 Q × 全量 KV</text>
+          <text class="m" x="484" y="88">（causal：各 token 看各自前缀）</text>
+          <rect class="b3" x="470" y="140" width="220" height="104" rx="9"/>
+          <text class="cd" x="484" y="162">attn-CP rank 1</text>
+          <text class="m" x="484" y="180">Q = t1 t3 t5 t7</text>
+          <text class="m" x="484" y="196">partial attn：本 rank 的 Q × 全量 KV</text>
+          <rect class="b" x="740" y="78" width="200" height="104" rx="9"/>
+          <text class="cd" x="754" y="100">attn_cp all_gather</text>
+          <text class="m" x="754" y="118">transpose 复原 t0…t7 顺序</text>
+          <text class="m" x="754" y="134">完整 hidden → MoE / 下一层</text>
+          <text class="cdm" x="754" y="152">dsa/communicator.py</text>
+          <path class="ln2" d="M 690 68 L 740 104" marker-end="url(#ar-cp)"/>
+          <path class="ln3" d="M 690 192 L 740 156" marker-end="url(#ar-cp)"/>
+          <text class="m" x="30" y="268"><tspan style="font-weight:680;">KV 存储不切</tspan>：DSA/MLA 的 latent KV 每个 rank 全量都有——CP 切的是计算（Q 的 token 维），不是 KV 池，radix / HiCache 元数据对 CP 无感</text>
+          <text class="cdm" x="30" y="288">dsa/utils.py:115 dsa_cp_round_robin_split_data · server_args.py:3706 起启用条件与断言</text>
+        </g>
+      </svg>
+      <figcaption><b>图 16b · DSA CP interleave 切分（旧名 round-robin-split）一层里的数据流（cp=2 示意）。</b>为什么交错切而不是连续切段：causal mask 下 token 越靠后、要扫的前缀越长——连续切段会把最贵的尾段全塞给最后一个 rank；<code>token_idx % cp_size</code> 让每个 rank 摊到长短均匀的一篮子。输出经 all_gather + transpose 复原全序列，CP 的存在对上下游算子完全透明。</figcaption>
+    </figure>
+    <div class="cols c3">
+      <div class="card t3">
+        <h3>CP 切的是什么：序列维，且只切计算</h3>
+        <ul class="tight">
+          <li><strong>从 TP 里再分一刀</strong>：<code>attn_tp_size = tp / dp / cp</code>，rank layout (dp, cp, tp)（<code>dp_attention.py:245</code>）——CP 组内各 rank 持相同权重，各算一部分 token；DSA CP 下要求 <code>attn_tp_size == 1</code>（o_proj 的部分和不做 attn-TP all-reduce）。</li>
+          <li><strong>两种策略</strong>（<code>cp_strategy</code>，<code>server_args.py:3712</code>）：<strong>interleave</strong>（上图，<code>token_idx % cp_size</code>，要求 dp_size==1；旧名 round-robin-split）与 <strong>zigzag</strong>（要求 DPA + DeepEP + <code>ep=tp</code>）。</li>
+          <li><strong>现状边界</strong>：仅 prefill、仅 DeepSeek V3.2 DSA、Hopper 实验性、跨机有精度问题 → 限单机 <code>tp_size ≤ 8</code>（<code>server_args.py:3723</code>）；PD 分离下只在 prefill 侧。</li>
+        </ul>
+      </div>
+      <div class="card t2">
+        <h3>CP × PP：互斥已解除，靠传输层适配</h3>
+        <p>旧版曾对通用 <code>attn_cp</code> 直接 <code>assert pp_size == 1</code>；最新代码已<strong>移除</strong>这条断言（<code>server_args.py:5166</code> 起只剩整除与 fusion 检查），仅 <code>moe_dp_size &gt; 1</code> 仍禁 PP（<code>:5187</code>）。</p>
+        <p>DSA prefill CP 与 PP 同开还做了专门适配（<a href="https://github.com/sgl-project/sglang/issues/16380">#16380</a> 引入，后随 NSA→DSA 更名）：CP 下 attention 权重各 rank 复制、hidden 全量，PP 边界因此<strong>跳过</strong>第 3 页的「切 1/tp + all_gather」、proxy tensor 全量直发（<code>require_attn_tp_allgather=False</code>，<code>scheduler_pp_mixin.py:1744</code>）。</p>
+        <p class="codecap">能打通的原因正是主 deck 第 9 页判据：CP 切分纯在算子内部、不给 ③ 组批引入 per-rank 输入——所以只需改传输层，不需要新共识。</p>
+      </div>
+      <div class="card good">
+        <h3>EP × PP：天然正交，零断言</h3>
+        <ul class="tight">
+          <li>EP 切 MoE 的 <strong>expert 维</strong>：<code>moe_tp_size = tp / ep / moe_dp</code>（<code>parallel_state.py:2198</code> 起），expert 权重按 rank 分桶，token 靠 all-to-all（DeepEP）去找 expert、算完回来。</li>
+          <li>全程发生在<strong>每层 MoE 内部</strong>：PP 边界传的仍是 hidden states，EP 与 PP 互不知晓——代码里没有任何 ep × pp 互斥断言。</li>
+          <li>对 KV / HiCache <strong>零影响</strong>：EP 不碰 attention，KV 字节与元数据与纯 TP 完全相同。约束都在 TP 侧：<code>ep × moe_dp ≤ tp</code>，且 <code>ep &gt; 1</code> 时须 <code>== tp</code>（<code>server_args.py:5185</code>）。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">
+      <strong>判别口诀（与 PP 能不能叠）</strong>：看两条——① 它切的维度是否与「层」相交；② 它是否给 ③ 组批引入新的 per-rank 输入。TP / EP / DPA 两条都不沾，✅ 直接叠；HiCache 维度不沾但引入per-rank 输入，✅ 但共识修了半年（主 deck Part 3）；speculative 要改采样与 KV 计量双时序，❌ 硬互斥（<code>server_args.py:6832</code>）；CP 正因为两条都不沾，互斥断言已被移除、DSA 路靠传输层适配打通（本页），只有 moe_dp&gt;1 的组合仍 ❌（<code>:5187</code>）。
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — PR / issue：<a href="https://github.com/sgl-project/sglang/issues/16380">#16380</a> ｜ 源码：<a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/dp_attention.py"><code>dp_attention.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/distributed/parallel_state.py"><code>parallel_state.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler_pp_mixin.py"><code>scheduler_pp_mixin.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/server_args.py"><code>server_args.py</code></a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 21c. chunk × PP 动态分块 ═══════════════ -->
+<section class="slide" aria-label="chunked prefill × PP 动态分块">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 05</div>
+    <h2>chunked prefill × PP：动态分块（--enable-dynamic-chunking）</h2>
+    <p class="lede" style="font-size:15px;">chunked prefill 与 PP 相性天生不好：同样 token 数的 chunk，history 越长 attention 越贵，而 PP 的 microbatch 流水在 ★ 同步点锁步——最慢的 chunk 拖住整环。最新修复给 PP 配了专属方案：把「等 token 数」换成「等耗时」，且延迟这个 per-rank 量只在启动阶段进入系统一次。</p>
+    <figure>
+      <svg viewBox="0 0 960 350" role="img" aria-label="上排为固定 chunk：每片 8k token 但要扫的前缀从 0 涨到 24k，条宽即耗时从 T 涨到 2.1T，超出 T 的部分以红色溢出段标出即流水线气泡；下排为动态 chunk：每片耗时恒为 T，token 数从 8k 递减到 4.9k；底部为实测拟合、定目标 T、逐片解方程的三步流程与数值防线">
+        <defs>
+          <marker id="ar-dc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <text class="m" x="20" y="24">读图：<tspan style="font-weight:680;">条宽 = 实际耗时（不是 token 数）</tspan>；条内 = 本片 token 数 + 要扫的前缀长度。示例 base = 8k。</text>
+
+          <text class="big" x="20" y="48">等 token 数（固定 chunk）——为什么越算越慢</text>
+          <rect class="b" x="150" y="56" width="110" height="34" rx="6"/>
+          <text class="cd" x="158" y="70">8k tok</text>
+          <text class="m" x="158" y="84">扫前缀 0</text>
+          <rect class="b" x="266" y="56" width="149" height="34" rx="6"/>
+          <rect x="376" y="80" width="39" height="10" style="fill:var(--bad-bg);stroke:var(--bad);stroke-width:1;"/>
+          <text class="cd" x="274" y="70">8k tok</text>
+          <text class="m" x="274" y="84">扫前缀 8k</text>
+          <rect class="b" x="421" y="56" width="187" height="34" rx="6"/>
+          <rect x="531" y="80" width="77" height="10" style="fill:var(--bad-bg);stroke:var(--bad);stroke-width:1;"/>
+          <text class="cd" x="429" y="70">8k tok</text>
+          <text class="m" x="429" y="84">扫前缀 16k</text>
+          <rect class="b" x="614" y="56" width="231" height="34" rx="6"/>
+          <rect x="724" y="80" width="121" height="10" style="fill:var(--bad-bg);stroke:var(--bad);stroke-width:1;"/>
+          <text class="cd" x="622" y="70">8k tok</text>
+          <text class="m" x="622" y="84">扫前缀 24k</text>
+          <text class="m" x="188" y="104">T</text>
+          <text class="m" x="320" y="104">1.35 T</text>
+          <text class="m" x="490" y="104">1.7 T</text>
+          <text class="m" x="700" y="104">2.1 T ← 最慢，整环等它</text>
+          <text class="m" x="20" y="126">每个新 token 都要对全部前缀做 attention → 同样 8k token 越来越贵；<tspan style="fill:var(--bad);font-weight:680;">红段 = 超出 T 的溢出</tspan>——流水在 ④⑥ ★ 锁步，这段时间全环陪等（主 deck 第 7 页）</text>
+
+          <text class="big" x="20" y="156">等耗时（动态 chunk）——固定耗时，反解 token 数</text>
+          <rect class="bg" x="150" y="164" width="150" height="34" rx="6"/>
+          <text class="cd" x="158" y="178">8k tok</text>
+          <text class="m" x="158" y="192">扫前缀 0</text>
+          <rect class="bg" x="306" y="164" width="150" height="34" rx="6"/>
+          <text class="cd" x="314" y="178">6.6k tok</text>
+          <text class="m" x="314" y="192">扫前缀 8k</text>
+          <rect class="bg" x="462" y="164" width="150" height="34" rx="6"/>
+          <text class="cd" x="470" y="178">5.6k tok</text>
+          <text class="m" x="470" y="192">扫前缀 14.6k</text>
+          <rect class="bg" x="618" y="164" width="150" height="34" rx="6"/>
+          <text class="cd" x="626" y="178">4.9k tok</text>
+          <text class="m" x="626" y="192">扫前缀 20.2k</text>
+          <text class="m" x="790" y="178">token 递减，</text>
+          <text class="m" x="790" y="194">每片 ≈ T，无溢出</text>
+          <text class="m" x="150" y="216">前缀照样越来越长——但每片装的新 token 变少，两者相抵，耗时拉平（token 数为示意值）</text>
+
+          <rect class="b" x="20" y="238" width="300" height="64" rx="8"/>
+          <text class="cd" x="34" y="258">① 启动：PP0 实测拟合</text>
+          <text class="m" x="34" y="276">128 个递减 chunk 逐个前向计时</text>
+          <text class="m" x="34" y="292">f(l) = a·l² + b·l + c（累计耗时曲线）</text>
+          <path class="lnm" d="M 320 270 L 344 270" marker-end="url(#ar-dc)"/>
+          <rect class="b" x="344" y="238" width="270" height="64" rx="8"/>
+          <text class="cd" x="358" y="258">② 定目标 T</text>
+          <text class="m" x="358" y="276">T = f(base) − f(0)</text>
+          <text class="m" x="358" y="292">= 第一片（无前缀）的耗时</text>
+          <path class="lnm" d="M 614 270 L 638 270" marker-end="url(#ar-dc)"/>
+          <rect class="b" x="638" y="238" width="302" height="64" rx="8"/>
+          <text class="cd" x="652" y="258">③ 运行时逐片解方程</text>
+          <text class="m" x="652" y="276">f(L+x) − f(L) = T → 本片装 x 个 token</text>
+          <text class="m" x="652" y="292">L = 当前已算前缀长度</text>
+          <text class="cdm" x="20" y="330">数值防线：下限 base/4 · 对齐 max(page, 64) · 平滑 0.75 · 上限 context − L − 100 · 画像失败 → 回退固定 chunk</text>
+        </g>
+      </svg>
+      <figcaption><b>图 9b · 为什么要动态分块，以及它怎么算。</b>上排：固定每片 8k token，但每个新 token 都要对<b>全部前缀</b>做 attention——前缀 0→24k，同样的 8k token 耗时 T→2.1T；红色溢出段就是 PP 全环陪等的气泡（TP-only 无人等你，所以这是 PP 专属问题）。下排：反过来<b>固定每片耗时 = T</b>，用启动时拟合的耗时曲线反解每片该装多少 token（8k→4.9k 递减）。底部三步：实测拟合 → 定 T → 逐片解方程——per-rank 量只在 ① 进入系统一次，之后全是纯函数（左卡展开）。</figcaption>
+    </figure>
+    <div class="cols c2">
+      <div class="card t3">
+        <h3>per-rank 量只进入系统一次：画像 → 广播 → 纯函数</h3>
+        <ul class="tight" style="font-size:13.5px;">
+          <li><strong>PP0 单点画像</strong>（<code>scheduler_pp_mixin.py:1776</code>）：启动时构造 128 个 token 数递减的 dummy 请求逐个前向实测延迟；DPA 下还须填 <code>global_num_tokens</code>（本 dp 组 = 长度、其余 0）发起 idle batch 参与 MLP sync（<code>:1831</code>，<a href="https://github.com/sgl-project/sglang/issues/17339">#17339</a>）——呼应第 4 页的「必须发起 idle batch」。</li>
+          <li><strong>广播原始样本</strong>：先 attn_tp 组内 broadcast，再 <code>pp_group.broadcast_object_list(src=0)</code>（<code>:1930</code>）——发的是 (seq_lens, latencies) <strong>原始数据</strong>，不是各 rank 自己测。</li>
+          <li><strong>全员同拟合</strong>：每个 rank 用同一份数据跑同一个确定性 <code>lstsq</code>（<code>:2654</code>；丢弃首样本防无 warmup 偏差 <a href="https://github.com/sgl-project/sglang/issues/17198">#17198</a>，样本 &lt; 8 或 a ≤ 0 拒绝拟合）。此后 <code>predict(history_len)</code> 是纯函数，history_len 本受请求流契约保护——全网格解出同一个 chunk size，<strong>运行时零通信</strong>。</li>
+          <li><strong>失败安全</strong>：画像抛异常 → 告警并退回固定 chunk（<code>scheduler.py:1058</code>）；预测无解返 None → 用 base。</li>
+        </ul>
+        <p class="codecap">与 <a href="https://github.com/sgl-project/sglang/issues/27285">#27285</a> / <a href="https://github.com/sgl-project/sglang/issues/27010">#27010</a> 同款范式（主 deck 第 13 / 16 页）：不对齐 IO、只对齐决策输入——延迟这个 per-rank 量在启动时被采样一次，随即转为协议数据。</p>
+      </div>
+      <div class="card t2">
+        <h3>落点与修复沉淀</h3>
+        <ul class="tight" style="font-size:13.5px;">
+          <li><strong>只作用于续 chunk</strong>：组批时仅当 <code>chunked_req</code> 非空才预测（<code>scheduler.py:3130</code>）——首 chunk 用 base，后续按 history 递减；prefill buffer 按 1.25×base 预留探测余量（<code>server_args.py:5368</code>）。</li>
+          <li><strong>修复沉淀</strong>：<a href="https://github.com/sgl-project/sglang/issues/15372">#15372</a> 采样 32→128 点、对齐下限 page→max(page, 64)；<a href="https://github.com/sgl-project/sglang/issues/16140">#16140</a> chunk 下限 base/4——防长 history 下解出微小 chunk、固定开销反超收益；<a href="https://github.com/sgl-project/sglang/issues/17198">#17198</a> 拟合丢首样本；<a href="https://github.com/sgl-project/sglang/issues/17339">#17339</a> DPA 画像参与 collective。平滑系数 <code>SGLANG_DYNAMIC_CHUNKING_SMOOTH_FACTOR=0.75</code> 防尺寸骤降。</li>
+          <li><strong>centralized 方案再进一步</strong>：本地 plan-driven 分支里，chunk 尺寸随 <code>extend_lens</code>、<code>chunked_rid</code> 编入 <code>PPPrefillPlan</code> 由 PP0 统一下发，其余 rank <code>build_batch_from_plan</code> 镜像 chunked_req 指针（<code>scheduler_pp_mixin.py:143/794</code>）——从「全员同构地各自算」升级为「单点算、协议发」。</li>
+        </ul>
+        <p class="codecap">chunk 与缓存的交界不变：每片结束仍走 <code>cache_unfinished_req</code> 入树 + 锁移交（主 deck 第 8 / 22 页），动态的只是「下一片切多长」。</p>
+      </div>
+    </div>
+    <div class="note">
+      <strong>长 prompt 的折中（为什么有 base/4 下限）</strong>：token 单价随位置线性上涨（f′(l) = 2a·l + b），纯解方程时 x ≈ T/(2aL) 按 <strong>1/L 收缩</strong>——超长 history 下 chunk 会掉到几百 token，片数暴涨，每片的<strong>固定开销</strong>（恰是 T 刻意排除的常数 c：调度一步、kernel 发射、PP 边界一次 P2P）摊不薄，吞吐反而下降。两道闸在数学上殊途同归：平滑 0.75 的极限值 = 0.25·base；硬下限 = base/4（<a href="https://github.com/sgl-project/sglang/issues/16140">#16140</a>）——超长 prompt 下 chunk 钉在 base/4，「等耗时」不再严格成立、气泡部分回归，<strong>但有界</strong>。三选一：固定 chunk = 气泡无界 ❌；纯解方程 = 片数与固定开销无界 ❌；解方程 + base/4 下限 = 气泡有界 + 片数有界 ✓。
+    </div>
+    <div class="note ok">
+      <strong>一句话</strong>：动态分块示范了在 PP 上引入per-rank 输入的「正确姿势」——采样单点化、数据协议化、决策纯函数化。HiCache 的教训（Part 2–3）与它是同一问题的反例与正解。
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — PR / issue：<a href="https://github.com/sgl-project/sglang/issues/15372">#15372</a> · <a href="https://github.com/sgl-project/sglang/issues/16140">#16140</a> · <a href="https://github.com/sgl-project/sglang/issues/17198">#17198</a> · <a href="https://github.com/sgl-project/sglang/issues/17339">#17339</a> · <a href="https://github.com/sgl-project/sglang/issues/27010">#27010</a> · <a href="https://github.com/sgl-project/sglang/issues/27285">#27285</a> ｜ 源码：<a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler.py"><code>scheduler.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler_pp_mixin.py"><code>scheduler_pp_mixin.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/server_args.py"><code>server_args.py</code></a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 22. PD × Mooncake ═══════════════ -->
+<section class="slide" aria-label="PD 分离与 Mooncake">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 06</div>
+    <h2>PD 分离 × Mooncake：KVPoll 五态与两个数据平面</h2>
+    <figure>
+      <svg viewBox="0 0 960 380" role="img" aria-label="PD 传输时序：prefill sender 与 decode receiver 各自经历 Bootstrapping、WaitingForInput、Transferring、Success 状态；中间交换握手、元数据、KV 页与 aux buffer">
+        <defs>
+          <marker id="ar-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <text class="big" x="20" y="34">Prefill · KVSender</text>
+          <path class="lnm" d="M 20 44 L 940 44"/>
+          <text class="big" x="20" y="352">Decode · KVReceiver</text>
+          <path class="lnm" d="M 20 330 L 940 330"/>
+
+          <rect class="bq" x="40" y="56" width="150" height="34" rx="17"/>
+          <text class="cd" x="56" y="78">Bootstrapping</text>
+          <rect class="bq" x="250" y="56" width="170" height="34" rx="17"/>
+          <text class="cd" x="266" y="78">WaitingForInput</text>
+          <rect class="bq" x="490" y="56" width="150" height="34" rx="17"/>
+          <text class="cd" x="506" y="78">Transferring</text>
+          <rect class="bg" x="710" y="56" width="120" height="34" rx="17"/>
+          <text class="cd" x="726" y="78">Success</text>
+          <path class="lnm" d="M 190 73 L 250 73" marker-end="url(#ar-o)"/>
+          <path class="lnm" d="M 420 73 L 490 73" marker-end="url(#ar-o)"/>
+          <path class="lnm" d="M 640 73 L 710 73" marker-end="url(#ar-o)"/>
+
+          <rect class="bq" x="40" y="290" width="150" height="34" rx="17"/>
+          <text class="cd" x="56" y="312">Bootstrapping</text>
+          <rect class="bq" x="250" y="290" width="170" height="34" rx="17"/>
+          <text class="cd" x="266" y="312">WaitingForInput</text>
+          <rect class="bq" x="490" y="290" width="150" height="34" rx="17"/>
+          <text class="cd" x="506" y="312">Transferring</text>
+          <rect class="bg" x="710" y="290" width="120" height="34" rx="17"/>
+          <text class="cd" x="726" y="312">Success</text>
+          <path class="lnm" d="M 190 307 L 250 307" marker-end="url(#ar-o)"/>
+          <path class="lnm" d="M 420 307 L 490 307" marker-end="url(#ar-o)"/>
+          <path class="lnm" d="M 640 307 L 710 307" marker-end="url(#ar-o)"/>
+
+          <path class="ln" d="M 115 290 L 115 90" marker-end="url(#ar-o)"/>
+          <text class="m" x="126" y="122">① receiver 经 bootstrap</text>
+          <text class="m" x="126" y="138">server 注册 room、握手</text>
+          <path class="ln" d="M 335 290 L 335 90" marker-end="url(#ar-o)"/>
+          <text class="m" x="346" y="122">② decode 预分配后</text>
+          <text class="cdm" x="346" y="140">send_metadata(kv_indices,</text>
+          <text class="cdm" x="346" y="156">aux_index, decode_prefix_len)</text>
+          <path class="ln3" d="M 565 90 L 565 290" marker-end="url(#ar-o)"/>
+          <text class="m" x="576" y="150">③ KV 平面：transfer_worker</text>
+          <text class="cdm" x="576" y="168">batch_transfer_sync（RDMA）</text>
+          <text class="m" x="576" y="186">分块传 KV page；前缀页可与</text>
+          <text class="m" x="576" y="202">forward 重叠提前发</text>
+          <path class="ln1" d="M 690 90 L 690 290" marker-end="url(#ar-o)"/>
+          <text class="m" x="700" y="236">④ 末片：set_buf → aux 平面</text>
+          <text class="m" x="700" y="252">（含 spec hidden/topk）</text>
+          <path class="ln" d="M 800 90 L 800 290" marker-end="url(#ar-o)"/>
+          <text class="m" x="810" y="150">⑤ 状态回写：</text>
+          <text class="m" x="810" y="166">decode 提交请求</text>
+          <text class="m" x="810" y="182">→ PREBUILT batch</text>
+          <text class="m" x="810" y="198">→ 直接进 decode</text>
+
+          <rect class="bb" x="40" y="130" width="230" height="76" rx="9"/>
+          <text class="cd tbf" x="54" y="152">→ Failed 的四条路</text>
+          <text class="m" x="54" y="170">bootstrap/waiting 超时 ·</text>
+          <text class="m" x="54" y="186">session 探活失败 · 心跳发现</text>
+          <text class="m" x="54" y="202">节点挂 · decode abort 握手</text>
+        </g>
+      </svg>
+      <figcaption><b>图 17 · 一次 KV 交接的五步。</b>方向值得注意：是 <b>decode 端先分配、把目标 kv_indices 告诉 prefill</b>，prefill 才照址写入（RDMA write）。prefill 端队列：bootstrap_queue → 跑批 → inflight_queue（等传完才释放 KV）；decode 端：prealloc_queue → transfer_queue → waiting_queue。（disaggregation/prefill.py / decode.py / mooncake/conn.py:1574 transfer_worker）</figcaption>
+    </figure>
+    <p class="muted" style="font-size:13.5px;">与 HiCache 的联动即主 deck 第 20 页那条链：decode 端也可开 L3 prefetch（<a href="https://github.com/sgl-project/sglang/issues/26227">#26227</a>），abort 时走 <code>_clean_hicache_prefetch_resources</code>；PP+PD 下 bootstrap/release 决策由共识统一（<a href="https://github.com/sgl-project/sglang/issues/31869">#31869</a> / 本地 centralized 方案）。</p>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — PR / issue：<a href="https://github.com/sgl-project/sglang/issues/26227">#26227</a> · <a href="https://github.com/sgl-project/sglang/issues/31869">#31869</a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 23. EAGLE ═══════════════ -->
+<section class="slide" aria-label="EAGLE 推测解码">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 07</div>
+    <h2>EAGLE：draft–verify 循环，与 target 共享 KV 池</h2>
+    <figure>
+      <svg viewBox="0 0 960 260" role="img" aria-label="EAGLE 解码循环：draft 模型 k 步自回归产出 topk 树，构建 tree mask 后 target 单次前向验证，接受最长路径加 bonus token，再做 draft_extend 为下一轮准备">
+        <defs>
+          <marker id="ar-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <rect class="b1" x="30" y="60" width="200" height="90" rx="10"/>
+          <text class="big" x="46" y="86">① draft</text>
+          <text class="m" x="46" y="106">小模型 k 步自回归，</text>
+          <text class="m" x="46" y="122">每步 top-k 分叉成树</text>
+          <text class="cdm" x="46" y="140">EagleDraftWorker.draft</text>
+          <rect class="b" x="270" y="60" width="190" height="90" rx="10"/>
+          <text class="big" x="286" y="86">② 建树</text>
+          <text class="cdm" x="286" y="106">build_tree_kernel</text>
+          <text class="m" x="286" y="124">tree_mask / positions /</text>
+          <text class="m" x="286" y="140">retrieve_index 直写 buffer</text>
+          <rect class="b3" x="500" y="60" width="190" height="90" rx="10"/>
+          <text class="big" x="516" y="86">③ verify</text>
+          <text class="m" x="516" y="106">target 单次前向</text>
+          <text class="m" x="516" y="122">（is_verify：跳过 sample）</text>
+          <text class="cdm" x="516" y="140">eagle_sample → accept</text>
+          <rect class="bg" x="730" y="60" width="200" height="90" rx="10"/>
+          <text class="big" x="746" y="86">④ 接受 + bonus</text>
+          <text class="m" x="746" y="106">取最长被接受路径，</text>
+          <text class="m" x="746" y="122">追加 1 个 bonus token</text>
+          <text class="cdm" x="746" y="140">new_seq_lens += accept</text>
+          <path class="ln" d="M 230 105 L 270 105" marker-end="url(#ar-p)"/>
+          <path class="ln" d="M 460 105 L 500 105" marker-end="url(#ar-p)"/>
+          <path class="ln" d="M 690 105 L 730 105" marker-end="url(#ar-p)"/>
+          <path class="ln1" d="M 830 150 L 830 200 L 130 200 L 130 150" marker-end="url(#ar-p)"/>
+          <text class="cdm" x="330" y="192">⑤ draft_extend：把接受结果喂回 draft 模型暖 KV，进入下一轮</text>
+          <text class="m" x="30" y="240">一轮接受 n 个 token（1 ≤ n ≤ k+1）——decode 吞吐提升的来源；被拒的 draft KV 在请求结束时按 [committed, allocated) 区间整体释放</text>
+        </g>
+      </svg>
+      <figcaption><b>图 18 · 一轮 EAGLE 解码。</b>draft 与 target <b>共享</b> <code>req_to_token_pool</code> 与 KV allocator（draft 只多出自己那几层的 KV）；被接受路径的 KV slot 会被压实到 block 前端（<code>_finalize_accept_tree_path</code>，topk&gt;1 时最微妙的一步）。（speculative/eagle_worker_v2.py:1074 双分支）</figcaption>
+    </figure>
+    <div class="cols c2">
+      <ul class="tight" style="font-size:14px;">
+        <li><strong>与 radix cache 的交互</strong>：EAGLE 下 <code>RadixKey</code> 全部转 <strong>bigram 视图</strong>——draft KV 绑定 (prev, cur) token 对，普通 unigram 前缀语义会错配（<code>radix_cache.py:139</code>）。</li>
+        <li><strong>超额分配</strong>：每轮按预留量分配而非 +1（<code>kv_allocated_len</code> 先行，<code>kv_committed_len</code> 只随接受推进）；结束时 <code>pop_overallocated_kv_cache()</code> 释放被拒段。</li>
+        <li><strong>retract 限制</strong>：spec 下只能从<strong>队尾</strong>踢请求（filter API 限制，<code>schedule_batch.py:2511</code>）。</li>
+        <li><strong>req_to_token 行宽</strong>为 draft 预留 <code>4 + max_draft_tokens</code> 列（<code>common.py:253</code>）。</li>
+      </ul>
+      <pre><span class="cm"># prefill 分支顺带为 decode 备好 draft 起点（:1074）</span>
+if batch.forward_mode.is_extend():
+    batch.capture_hidden_mode = FULL  <span class="cm"># target 吐全量 hidden</span>
+    out = target_worker.forward_batch_generation(batch)
+    draft_worker._draft_extend_for_prefill(...)
+else:
+    verify_input = draft_worker.draft(batch)
+    out = self.verify(batch)          <span class="cm"># 含 eagle_sample</span>
+    draft_worker._draft_extend_for_decode(...)</pre>
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — 源码：<a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/mem_cache/common.py"><code>common.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/mem_cache/radix_cache.py"><code>radix_cache.py</code></a> · <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/schedule_batch.py"><code>schedule_batch.py</code></a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+<!-- ═══════════════ 24. PD + EAGLE ═══════════════ -->
+<section class="slide" aria-label="PD 与 EAGLE 的传递链">
+  <div class="inner">
+    <div class="eyebrow">组合场景 · 08</div>
+    <h2>PD + EAGLE：hidden states 的三跳旅程</h2>
+    <p class="lede" style="font-size:15px;">decode 端的<strong>第一轮 draft</strong> 需要 target 模型在 prefill 时的 hidden states 和 top-k 分布——这些不走 KV 平面，而是搭 aux buffer 的便车。</p>
+    <figure>
+      <svg viewBox="0 0 960 250" role="img" aria-label="三跳传递：prefill 端把 spec_info 存入请求字段，写进 MetadataBuffers aux buffer，经 mooncake RDMA 送达 decode 端，重建为 EagleDraftInput 供第一轮 draft 使用">
+        <defs>
+          <marker id="ar-q" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g color="var(--ink)">
+          <rect class="b2" x="20" y="40" width="280" height="120" rx="10"/>
+          <text class="big" x="36" y="66">跳 1 · Prefill 采集</text>
+          <text class="cdm" x="36" y="88">process_batch_result_disagg_prefill</text>
+          <text class="cd" x="36" y="110">req.output_topk_p / _index</text>
+          <text class="cd" x="36" y="128">req.hidden_states_tensor</text>
+          <text class="m" x="36" y="148">← batch.spec_info（.cpu().clone()）</text>
+          <rect class="b1" x="340" y="40" width="280" height="120" rx="10"/>
+          <text class="big" x="356" y="66">跳 2 · aux buffer 装车</text>
+          <text class="cdm" x="356" y="88">MetadataBuffers.set_buf（末片时）</text>
+          <text class="m" x="356" y="108">10 个定长 buffer：output_ids、logprobs、</text>
+          <text class="cd" x="356" y="128">topk_p[≤16] · topk_index · hidden_states</text>
+          <text class="m" x="356" y="148">→ send_aux（RDMA）/ send_aux_tcp（ZMQ）</text>
+          <rect class="b3" x="660" y="40" width="280" height="120" rx="10"/>
+          <text class="big" x="676" y="66">跳 3 · Decode 重建</text>
+          <text class="cdm" x="676" y="88">_commit_transfer_to_req 取回三件套</text>
+          <text class="cdm" x="676" y="108">build_eagle_disagg_draft_input</text>
+          <text class="cd" x="676" y="128">→ EagleDraftInput(topk, hidden,</text>
+          <text class="cd" x="676" y="146">   bonus_tokens=首 token)</text>
+          <path class="ln" d="M 300 100 L 340 100" marker-end="url(#ar-q)"/>
+          <path class="ln" d="M 620 100 L 660 100" marker-end="url(#ar-q)"/>
+          <path class="ln3" d="M 800 160 L 800 206" marker-end="url(#ar-q)"/>
+          <rect class="bg" x="660" y="206" width="280" height="34" rx="9"/>
+          <text class="cd" x="676" y="228">PREBUILT batch → 第一轮 draft 起跑</text>
+          <text class="m" x="20" y="196">要点：aux buffer <tspan class="cd">始终</tspan>分配并注册这 10 个指针（非 spec 时内容为 0）——</text>
+          <text class="m" x="20" y="214">所以「prefill 不开 EAGLE + decode 开 EAGLE」不会报错，只会让 decode 拿到全 0 的</text>
+          <text class="m" x="20" y="232">hidden states，draft 从第一步就在胡猜。两端 spec 配置必须一致。</text>
+        </g>
+      </svg>
+      <figcaption><b>图 19 · spec 状态的搬运不占 KV 平面。</b>注释原话：「use tensor instead of list to transfer hidden_states when PD + MTP」。decode 端 <code>bootstrap_room</code> 会随 buffer 一起校验，防 aux slot 撞车。（prefill.py:658 / utils.py:395 / decode.py:1562 / eagle_disaggregation.py:17）</figcaption>
+    </figure>
+    <div class="note">
+      <strong>串起来看一次完整请求（形态 B）：</strong>Router 按 room 选 dp rank → Prefill（DPA 组内 attention、全局 MoE；HiCache 可命中 L1/L2/L3 前缀）→ chunked prefill 边算边把前缀页 RDMA 给 decode → 末片写 aux（首 token + hidden/topk）→ Decode prealloc 好的 kv_indices 接收 → PREBUILT 入批 → EAGLE draft–verify 循环吐 token → 结束时 <code>cache_finished_req</code> 入树、释放超额 draft KV。abort 在任何一跳发生，都走主 deck 第 18–19 页的路径。
+    </div>
+    <p class="src" style="margin-top:14px;border-top:1px solid var(--line);padding-top:8px;">本页引用 — 总纲 issue <a href="https://github.com/sgl-project/sglang/issues/22607">#22607</a> · 代码基线 <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt">sglang/srt</a><span class="muted">（行号基于 2026-08 基线，链接指向 main）</span></p>
+  </div>
+</section>
+
+
+</main>
+
+<footer id="chrome">
+  <span>SGLang · PP × 组合场景（姊妹 deck）</span>
+  <div id="navbtns">
+    <button id="prev" aria-label="上一页">←</button>
+    <span id="counter">1 / 9</span>
+    <button id="next" aria-label="下一页">→</button>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('section.slide'));
+  var bar = document.getElementById('bar');
+  var counter = document.getElementById('counter');
+  var cur = 0;
+
+  function show(n) {
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides[cur].classList.remove('on');
+    cur = n;
+    slides[cur].classList.add('on');
+    slides[cur].scrollTop = 0;
+    counter.textContent = (cur + 1) + ' / ' + slides.length;
+    bar.style.width = ((cur + 1) / slides.length * 100) + '%';
+    var want = '#/' + (cur + 1);
+    if (location.hash !== want) history.replaceState(null, '', want);
+  }
+
+  function fromHash() {
+    var m = location.hash.match(/^#\/(\d+)/);
+    show(m ? parseInt(m[1], 10) - 1 : 0);
+  }
+
+  document.getElementById('next').addEventListener('click', function () { show(cur + 1); });
+  document.getElementById('prev').addEventListener('click', function () { show(cur - 1); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': show(cur + 1); e.preventDefault(); break;
+      case ' ': show(e.shiftKey ? cur - 1 : cur + 1); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': show(cur - 1); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(slides.length - 1); e.preventDefault(); break;
+    }
+  });
+
+  window.addEventListener('hashchange', fromHash);
+  slides[0].classList.add('on');
+  fromHash();
+})();
+</script>
+</body>
+</html>

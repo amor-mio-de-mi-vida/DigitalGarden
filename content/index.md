@@ -16,6 +16,9 @@ See the [documentation](https://quartz.jzhao.xyz) for how to get started.
 ## [[CUDA/index|CUDA]]
 
 
+## [[Infra/index|Infra]]
+
+
 ## [[Literature/index|Literature]]
 
 

@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "qpublic",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-I",
+        "-u",
+        "/private/tmp/qpublic/serve.py"
+      ],
+      "port": 8901
+    }
+  ]
+}
